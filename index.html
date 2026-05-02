@@ -113,8 +113,10 @@ body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#070d1a;color:#
 const FOLDER_ID = '1GBQPwDuzlq9t37lcFw-1m2tgZUdkS5ii';
 const API_MODEL = 'claude-sonnet-4-6';
 
-let scriptUrl = localStorage.getItem('ict_script_url') || '';
-let apiKey    = localStorage.getItem('ict_api_key')    || '';
+let scriptUrl  = localStorage.getItem('ict_script_url')  || '';
+let apiKey     = localStorage.getItem('ict_api_key')     || '';
+let openaiKey  = localStorage.getItem('ict_openai_key')  || '';
+let ttsVoice   = localStorage.getItem('ict_tts_voice')   || 'nova';
 
 const QUESTIONS = [
   { field:'aanvrager',   label:'Naam aanvrager', q:'Wat is uw naam?' },
@@ -142,42 +144,89 @@ const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 // ─── SETTINGS ────────────────────────────────────────────
 function saveSettings() {
-  const u = (document.getElementById('su')?.value||'').trim();
-  const k = (document.getElementById('sk')?.value||'').trim();
+  const u  = (document.getElementById('su')?.value||'').trim();
+  const k  = (document.getElementById('sk')?.value||'').trim();
+  const ok = (document.getElementById('sok')?.value||'').trim();
+  const v  = document.getElementById('sv')?.value || 'nova';
   const err = document.getElementById('serr');
   if (!u.includes('script.google.com')) {
     err.textContent = 'Voer een geldige Apps Script URL in'; return;
   }
-  if (state.mode==='voice' && k && !k.startsWith('sk-ant-')) {
-    err.textContent = 'API-sleutel moet beginnen met sk-ant-…'; return;
+  if (k && !k.startsWith('sk-ant-')) {
+    err.textContent = 'Anthropic-sleutel moet beginnen met sk-ant-…'; return;
   }
-  scriptUrl = u; apiKey = k;
+  if (ok && !ok.startsWith('sk-')) {
+    err.textContent = 'OpenAI-sleutel moet beginnen met sk-…'; return;
+  }
+  scriptUrl = u; apiKey = k; openaiKey = ok; ttsVoice = v;
   localStorage.setItem('ict_script_url', u);
-  if (k) localStorage.setItem('ict_api_key', k);
+  if (k)  localStorage.setItem('ict_api_key', k);
+  if (ok) localStorage.setItem('ict_openai_key', ok);
+  localStorage.setItem('ict_tts_voice', v);
   state.phase = 'idle'; render();
 }
 
-// ─── TTS ─────────────────────────────────────────────────
-function trySpeak(idx) {
-  if (!window.speechSynthesis) { state.ttsBlocked=true; render(); return; }
-  window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(QUESTIONS[idx].q);
-  u.lang='nl-NL'; u.rate=1.0;
-  u.onstart=()=>{ state.ttsActive=true; render(); };
-  u.onend=()=>{ state.ttsActive=false; startListening(); };
-  u.onerror=()=>{ state.ttsActive=false; state.ttsBlocked=true; render(); };
-  window.speechSynthesis.speak(u);
-  setTimeout(()=>{
-    if (!window.speechSynthesis.speaking && !state.ttsActive && state.phase==='asking' && !state.confirmed && !state.currentTranscript)
-      { state.ttsBlocked=true; render(); }
-  }, 900);
+// ─── TTS (OpenAI of browser-fallback) ────────────────────
+let currentAudio = null;
+
+async function speakText(text, onEnd) {
+  // Stop eventuele lopende audio
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  window.speechSynthesis?.cancel();
+
+  if (openaiKey) {
+    try {
+      const res = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + openaiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'tts-1', input: text, voice: ttsVoice })
+      });
+      if (!res.ok) throw new Error('OpenAI TTS fout: ' + res.status);
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      currentAudio = new Audio(url);
+      currentAudio.onended = () => { URL.revokeObjectURL(url); currentAudio = null; if (onEnd) onEnd(); };
+      currentAudio.onerror = () => { URL.revokeObjectURL(url); currentAudio = null; browserSpeak(text, onEnd); };
+      await currentAudio.play();
+      return;
+    } catch(e) {
+      console.warn('OpenAI TTS mislukt, terugval op browser:', e);
+    }
+  }
+  browserSpeak(text, onEnd);
 }
+
+function browserSpeak(text, onEnd) {
+  if (!window.speechSynthesis) { if (onEnd) onEnd(); return; }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'nl-NL'; u.rate = 1.0;
+  // Selecteer beste beschikbare NL-stem
+  const voices = window.speechSynthesis.getVoices();
+  const nlVoices = voices.filter(v => v.lang.startsWith('nl'));
+  const best = nlVoices.find(v => /Google|Microsoft|Premium|Enhanced|Neural|Siri/.test(v.name)) || nlVoices[0];
+  if (best) u.voice = best;
+  u.onend = () => { if (onEnd) onEnd(); };
+  window.speechSynthesis.speak(u);
+}
+
+function trySpeak(idx) {
+  state.ttsActive = true; render();
+  speakText(QUESTIONS[idx].q, () => {
+    state.ttsActive = false;
+    startListening();
+  }).catch(() => {
+    state.ttsActive = false; state.ttsBlocked = true; render();
+  });
+}
+
 function tapToSpeak() {
-  state.ttsBlocked=false;
-  const u = new SpeechSynthesisUtterance(QUESTIONS[state.step].q);
-  u.lang='nl-NL'; u.rate=1.0;
-  u.onend=()=>startListening();
-  window.speechSynthesis.speak(u); render();
+  state.ttsBlocked = false; state.ttsActive = true; render();
+  speakText(QUESTIONS[state.step].q, () => {
+    state.ttsActive = false;
+    startListening();
+  }).catch(() => {
+    state.ttsActive = false; render();
+  });
 }
 
 // ─── VOICE FLOW ──────────────────────────────────────────
@@ -397,7 +446,18 @@ function render(){
           <p class="s-hint">Nog geen URL? Zie het meegeleverde <code>DriveUpload_AppScript.gs</code> bestand.</p>
         </div>
         <div>
-          <label class="f-label" style="display:block;margin-bottom:5px">Anthropic API-sleutel <span style="color:#3a6080">(alleen voor spraakmode)</span></label>
+          <label class="f-label" style="display:block;margin-bottom:5px">OpenAI API-sleutel <span style="color:#3a6080">(voor menselijke stem)</span></label>
+          <input id="sok" class="s-input" type="password" placeholder="sk-..." value="${esc(openaiKey)}">
+          <p class="s-hint">Aanvragen via <a href="https://platform.openai.com/api-keys" target="_blank" style="color:#00d4b4">platform.openai.com/api-keys</a></p>
+        </div>
+        <div>
+          <label class="f-label" style="display:block;margin-bottom:5px">Stem</label>
+          <select id="sv" class="s-input">
+            ${['nova','shimmer','alloy','echo','fable','onyx'].map(v=>`<option value="${v}" ${ttsVoice===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}${v==='nova'?' (aanbevolen)':v==='shimmer'?' (zacht)':''}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="f-label" style="display:block;margin-bottom:5px">Anthropic API-sleutel <span style="color:#3a6080">(voor spraakverwerking)</span></label>
           <input id="sk" class="s-input" type="password" placeholder="sk-ant-api03-..." value="${esc(apiKey)}" onkeydown="if(event.key==='Enter')saveSettings()">
           <p class="s-hint">Aanvragen via <a href="https://console.anthropic.com" target="_blank" style="color:#00d4b4">console.anthropic.com</a></p>
         </div>
