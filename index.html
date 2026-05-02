@@ -365,35 +365,17 @@ async function opslaan() {
   render();
 }
 
-// ─── FORM UPLOAD (omzeilt CORS) ──────────────────────────
-function submitViaForm(payload) {
-  return new Promise((resolve) => {
-    // Maak hidden iframe als doelwit
-    let frame = document.getElementById('_ict_frame');
-    if (!frame) {
-      frame = document.createElement('iframe');
-      frame.id = '_ict_frame';
-      frame.name = '_ict_frame';
-      frame.style.display = 'none';
-      document.body.appendChild(frame);
-    }
-    // Maak form aan
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = scriptUrl;
-    form.target = '_ict_frame';
-    form.style.display = 'none';
-    const field = document.createElement('input');
-    field.type = 'hidden';
-    field.name = 'data';
-    field.value = JSON.stringify(payload);
-    form.appendChild(field);
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
-    // Wacht 3 seconden — Apps Script verwerkt asynchroon
-    setTimeout(resolve, 3000);
+// ─── UPLOAD via no-cors fetch ────────────────────────────
+async function submitViaForm(payload) {
+  // no-cors: request wordt verstuurd, response niet leesbaar — maar Apps Script ontvangt het wel
+  await fetch(scriptUrl, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+    // Geen Content-Type header = text/plain = simple request = geen preflight
   });
+  // Geef Apps Script tijd om het bestand aan te maken
+  await new Promise(r => setTimeout(r, 2500));
 }
 
 // ─── PDF ──────────────────────────────────────────────────
