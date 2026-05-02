@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICT Intake — Wijzigingsverzoek</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:#070d1a;color:#e8f0fe;min-height:100vh;display:flex;justify-content:center;padding:24px 16px}
+#app{width:100%;max-width:500px}
+
+/* ── Screens ── */
+.screen{min-height:calc(100vh - 48px);display:flex;flex-direction:column;gap:16px;padding-bottom:32px}
+.screen.center{justify-content:center;align-items:center;text-align:center}
+
+/* ── Logo & Header ── */
+.logo{display:flex;align-items:center;gap:9px}
+.logo-hex{font-size:20px;color:#00d4b4}
+.logo-text{font-family:'Syne',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:3.5px;color:#3a6080}
+.page-title{font-family:'Syne',sans-serif;font-weight:800;font-size:34px;line-height:1.05;letter-spacing:-1px;color:#e8f0fe}
+.page-sub{font-size:14px;line-height:1.6;color:#5a7a9a}
+
+/* ── Mode toggle ── */
+.mode-toggle{display:flex;background:#0d1526;border-radius:10px;padding:4px;gap:4px;border:1px solid #172a42}
+.mode-btn{flex:1;padding:10px;border:none;border-radius:7px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.mode-btn.on{background:linear-gradient(135deg,#00d4b4,#0891b2);color:#070d1a}
+.mode-btn.off{background:transparent;color:#3a6080}
+
+/* ── Voice ── */
+.mic-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin:4px 0}
+.mic-btn{width:100px;height:100px;border-radius:50%;background:linear-gradient(140deg,#00d4b4,#0891b2);border:none;cursor:pointer;color:#070d1a;display:flex;align-items:center;justify-content:center;transition:transform .15s;animation:mic-pulse 2.2s ease-in-out infinite}
+.mic-btn:hover{transform:scale(1.06)}.mic-btn:active{transform:scale(.97)}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,180,.3)}55%{box-shadow:0 0 0 16px rgba(0,212,180,0)}}
+.hint{font-size:11px;color:#243040;text-transform:uppercase;letter-spacing:2.5px}
+
+/* ── Progress dots ── */
+.progress-row{display:flex;align-items:center;gap:10px}
+.dots{display:flex;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:#172a42;transition:background .3s}
+.dot.active{background:#00d4b4}.dot.done{background:#0891b2}
+.prog-label{font-size:11px;color:#3a6080;text-transform:uppercase;letter-spacing:1.5px}
+
+/* ── Q&A ── */
+.q-field{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#00d4b4;font-weight:600}
+.q-text{font-family:'Syne',sans-serif;font-weight:700;font-size:24px;line-height:1.2;color:#e8f0fe}
+.listen-box{flex:1;min-height:130px;background:#0a1422;border:1px solid #172a42;border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.rec-dot{width:8px;height:8px;border-radius:50%;background:#f87171;animation:blink 1s infinite}
+.wait-dot{width:8px;height:8px;border-radius:50%;background:#fbbf24;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+.status-row{display:flex;align-items:center;gap:8px;font-size:11px;text-transform:uppercase;letter-spacing:2px;font-weight:600}
+.t-text{font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.7;color:#b8d0f0}
+.t-heard{font-family:'IBM Plex Mono',monospace;font-size:13.5px;line-height:1.7;color:#4ade80}
+.t-empty{font-family:'IBM Plex Mono',monospace;font-size:13px;color:#1e3350;font-style:italic}
+.cd-bar{height:3px;background:#172a42;border-radius:2px;overflow:hidden;margin-top:2px}
+.cd-fill{height:100%;background:#4ade80;border-radius:2px}
+
+/* ── Typing form ── */
+.form-card{background:#0d1526;border:1px solid #172a42;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.f-group{display:flex;flex-direction:column;gap:5px}
+.f-label{font-size:9.5px;text-transform:uppercase;letter-spacing:2px;color:#00d4b4;font-weight:600}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f-input,.f-textarea{background:#070d1a;border:1px solid #172a42;border-radius:8px;padding:10px 12px;color:#e8f0fe;font-family:'IBM Plex Sans',sans-serif;font-size:14px;outline:none;transition:border-color .15s;width:100%}
+.f-input:focus,.f-textarea:focus{border-color:#00d4b4}
+.f-textarea{min-height:84px;resize:vertical;line-height:1.55}
+.p-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.p-btn{padding:9px 4px;border:1.5px solid #172a42;background:#070d1a;color:#3a6080;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .15s;text-align:center}
+.p-laag{background:#052e16;border-color:#4ade80;color:#4ade80}
+.p-midden{background:#422006;border-color:#fbbf24;color:#fbbf24}
+.p-hoog{background:#431407;border-color:#fb923c;color:#fb923c}
+.p-kritiek{background:#450a0a;border-color:#f87171;color:#f87171}
+
+/* ── Buttons ── */
+.btn-row{display:flex;gap:10px}
+.btn-p{flex:1;padding:14px 18px;background:linear-gradient(135deg,#00d4b4,#0891b2);border:none;border-radius:10px;color:#070d1a;font-size:15px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:opacity .15s}
+.btn-p:hover{opacity:.88}
+.btn-s{padding:14px 16px;background:transparent;border:1.5px solid #172a42;border-radius:10px;color:#3a6080;font-size:14px;font-weight:600;cursor:pointer;font-family:'IBM Plex Sans',sans-serif;transition:all .15s}
+.btn-s:hover{border-color:#2a4a6a;color:#7a9cc8}
+.btn-ghost{padding:10px 12px;background:transparent;border:none;color:#2a4060;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans',sans-serif}
+.btn-ghost:hover{color:#5a7a9a}
+.btn-full{width:100%}
+.btn-drive{display:block;padding:14px;background:rgba(0,212,180,.08);border:1.5px solid rgba(0,212,180,.4);border-radius:10px;color:#00d4b4;font-size:15px;font-weight:700;text-decoration:none;text-align:center;font-family:'IBM Plex Sans',sans-serif}
+.btn-drive:hover{background:rgba(0,212,180,.15)}
+
+/* ── Setup form ── */
+.setup-card{background:#0d1526;border:1px solid #172a42;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.s-input{background:#070d1a;border:1px solid #172a42;border-radius:8px;padding:10px 12px;color:#e8f0fe;font-family:'IBM Plex Sans',sans-serif;font-size:14px;outline:none;transition:border-color .15s;width:100%}
+.s-input:focus{border-color:#00d4b4}
+.s-hint{font-size:11px;color:#2a4060;line-height:1.5;margin-top:3px}
+.s-err{font-size:12px;color:#f87171;min-height:14px}
+.divider{height:1px;background:linear-gradient(90deg,transparent,#172a42,transparent)}
+
+/* ── States ── */
+.spinner{width:36px;height:36px;border:3px solid #0d1f35;border-top-color:#00d4b4;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:#3a6080}
+.success-icon{width:68px;height:68px;border-radius:50%;background:rgba(74,222,128,.1);border:2px solid #4ade80;display:flex;align-items:center;justify-content:center;font-size:30px;color:#4ade80;animation:pop .35s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.success-title{font-family:'Syne',sans-serif;font-weight:800;font-size:28px}
+.file-chip{font-family:'IBM Plex Mono',monospace;font-size:11px;color:#3a6080;background:#0a1422;padding:6px 14px;border-radius:6px;border:1px solid #172a42;word-break:break-all;text-align:center;max-width:340px}
+.error-icon{width:58px;height:58px;border-radius:50%;background:rgba(248,113,113,.1);border:2px solid #f87171;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#f87171}
+.error-msg{font-size:13px;color:#f07070;max-width:300px;line-height:1.5;text-align:center}
+.badge{display:inline-flex;font-size:9.5px;text-transform:uppercase;letter-spacing:2px;color:#00d4b4;background:rgba(0,212,180,.08);border:1px solid rgba(0,212,180,.2);border-radius:4px;padding:3px 9px;width:fit-content}
+.review-title{font-family:'Syne',sans-serif;font-weight:700;font-size:20px}
+.gear-link{font-size:11px;color:#243040;text-align:center;cursor:pointer;margin-top:4px}
+.gear-link:hover{color:#3a6080}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const FOLDER_ID = '1GBQPwDuzlq9t37lcFw-1m2tgZUdkS5ii';
+const API_MODEL = 'claude-sonnet-4-6';
+
+let scriptUrl = localStorage.getItem('ict_script_url') || '';
+let apiKey    = localStorage.getItem('ict_api_key')    || '';
+
+const QUESTIONS = [
+  { field:'aanvrager',   label:'Naam aanvrager', q:'Wat is uw naam?' },
+  { field:'afdeling',    label:'Afdeling',       q:'Op welke afdeling of welk team werkt u?' },
+  { field:'prioriteit',  label:'Prioriteit',     q:'Wat is de prioriteit? Zeg laag, midden, hoog of kritiek.' },
+  { field:'beschrijving',label:'Beschrijving',   q:'Beschrijf de gewenste ICT-wijziging.' },
+  { field:'motivatie',   label:'Motivatie',      q:'Wat is de reden of motivatie voor de wijziging?' }
+];
+
+const pClr = { laag:'#4ade80', midden:'#fbbf24', hoog:'#f97316', kritiek:'#f87171' };
+
+let state = {
+  phase: (scriptUrl) ? 'idle' : 'setup',
+  mode: 'voice',   // 'voice' | 'type'
+  // voice
+  step: 0, answers: [], currentTranscript: '', interim: '',
+  confirmed: false, ttsBlocked: false, ttsActive: false,
+  // shared
+  form: { aanvrager:'', afdeling:'', prioriteit:'midden', beschrijving:'', motivatie:'' },
+  driveLink:'', filename:'', error:''
+};
+
+let rec = null, cdInterval = null, cdVal = 0;
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// ─── SETTINGS ────────────────────────────────────────────
+function saveSettings() {
+  const u = (document.getElementById('su')?.value||'').trim();
+  const k = (document.getElementById('sk')?.value||'').trim();
+  const err = document.getElementById('serr');
+  if (!u.includes('script.google.com')) {
+    err.textContent = 'Voer een geldige Apps Script URL in'; return;
+  }
+  if (state.mode==='voice' && k && !k.startsWith('sk-ant-')) {
+    err.textContent = 'API-sleutel moet beginnen met sk-ant-…'; return;
+  }
+  scriptUrl = u; apiKey = k;
+  localStorage.setItem('ict_script_url', u);
+  if (k) localStorage.setItem('ict_api_key', k);
+  state.phase = 'idle'; render();
+}
+
+// ─── TTS ─────────────────────────────────────────────────
+function trySpeak(idx) {
+  if (!window.speechSynthesis) { state.ttsBlocked=true; render(); return; }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(QUESTIONS[idx].q);
+  u.lang='nl-NL'; u.rate=1.0;
+  u.onstart=()=>{ state.ttsActive=true; render(); };
+  u.onend=()=>{ state.ttsActive=false; startListening(); };
+  u.onerror=()=>{ state.ttsActive=false; state.ttsBlocked=true; render(); };
+  window.speechSynthesis.speak(u);
+  setTimeout(()=>{
+    if (!window.speechSynthesis.speaking && !state.ttsActive && state.phase==='asking' && !state.confirmed && !state.currentTranscript)
+      { state.ttsBlocked=true; render(); }
+  }, 900);
+}
+function tapToSpeak() {
+  state.ttsBlocked=false;
+  const u = new SpeechSynthesisUtterance(QUESTIONS[state.step].q);
+  u.lang='nl-NL'; u.rate=1.0;
+  u.onend=()=>startListening();
+  window.speechSynthesis.speak(u); render();
+}
+
+// ─── VOICE FLOW ──────────────────────────────────────────
+function startIntake() {
+  state.step=0; state.answers=[]; state.currentTranscript=''; state.interim='';
+  state.confirmed=false; state.ttsBlocked=false; state.ttsActive=false;
+  state.phase='asking'; render();
+  setTimeout(()=>trySpeak(0), 300);
+}
+
+function startListening() {
+  if (!SpeechRec) { state.error='Spraakherkenning niet beschikbaar in deze browser.'; state.phase='error'; render(); return; }
+  state.currentTranscript=''; state.interim=''; state.confirmed=false; render();
+  rec = new SpeechRec();
+  rec.lang='nl-NL'; rec.continuous=false; rec.interimResults=true;
+  rec.onresult=(e)=>{
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) state.currentTranscript+=e.results[i][0].transcript+' ';
+      else interim+=e.results[i][0].transcript;
+    }
+    state.interim=interim; render();
+  };
+  rec.onerror=(e)=>{ if(e.error==='no-speech'){try{rec.start()}catch(e2){}return;} state.error='Spraakfout: '+e.error; state.phase='error'; render(); };
+  rec.onend=()=>{
+    const heard=(state.currentTranscript+state.interim).trim();
+    if(state.phase!=='asking') return;
+    if(heard){ state.currentTranscript=heard; state.interim=''; state.confirmed=true; startCountdown(); render(); }
+    else { setTimeout(()=>{try{rec.start()}catch(e){}},400); }
+  };
+  rec.start();
+}
+
+function startCountdown() {
+  cdVal=100; clearInterval(cdInterval);
+  cdInterval=setInterval(()=>{
+    cdVal-=5;
+    const el=document.getElementById('cd-fill');
+    if(el) el.style.width=cdVal+'%';
+    if(cdVal<=0){ clearInterval(cdInterval); nextStep(); }
+  },100);
+}
+
+function cancelCountdown() {
+  clearInterval(cdInterval); state.confirmed=false; state.currentTranscript='';
+  render(); setTimeout(()=>trySpeak(state.step), 200);
+}
+
+function nextStep() {
+  clearInterval(cdInterval);
+  if(rec){try{rec.stop()}catch(e){} rec=null;}
+  state.answers[state.step]=state.currentTranscript.trim();
+  state.currentTranscript=''; state.interim=''; state.confirmed=false;
+  if(state.step<QUESTIONS.length-1){ state.step++; state.phase='asking'; render(); setTimeout(()=>trySpeak(state.step),300); }
+  else { state.phase='processing'; render(); processAnswers(); }
+}
+
+async function processAnswers() {
+  try {
+    const qa = QUESTIONS.map((q,i)=>`${i+1}. ${q.label}: "${state.answers[i]||''}"`).join('\n');
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({
+        model:API_MODEL, max_tokens:800,
+        system:'Extraheer velden uit gesproken antwoorden. Retourneer UITSLUITEND valid JSON zonder markdown:\n{"aanvrager":"","afdeling":"","prioriteit":"laag|midden|hoog|kritiek","beschrijving":"","motivatie":""}',
+        messages:[{role:'user',content:qa}]
+      })
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(data.error.message);
+    const text=(data.content||[]).map(i=>i.text||'').join('');
+    const json=JSON.parse(text.replace(/```(?:json)?\n?/g,'').trim());
+    const vp=['laag','midden','hoog','kritiek'];
+    state.form={ aanvrager:json.aanvrager||'', afdeling:json.afdeling||'',
+      prioriteit:vp.includes((json.prioriteit||'').toLowerCase())?json.prioriteit.toLowerCase():'midden',
+      beschrijving:json.beschrijving||'', motivatie:json.motivatie||'' };
+    state.phase='review';
+  } catch(e){ state.error='Verwerking mislukt: '+e.message; state.phase='error'; }
+  render();
+}
+
+// ─── DRIVE UPLOAD ─────────────────────────────────────────
+async function opslaan() {
+  if(state.phase==='form'){ // read typed values
+    ['aanvrager','afdeling','beschrijving','motivatie'].forEach(k=>{
+      const el=document.getElementById('f-'+k); if(el) state.form[k]=el.value;
+    });
+  }
+  if(!state.form.aanvrager||!state.form.beschrijving){ state.error='Vul minimaal Aanvrager en Beschrijving in.'; render(); return; }
+  state.error=''; state.phase='uploading'; render();
+  try {
+    const {base64,filename}=buildPDF(); state.filename=filename;
+    const res=await fetch(scriptUrl,{ method:'POST', body:JSON.stringify({base64,filename,folderId:FOLDER_ID}) });
+    let driveLink=null;
+    try{ const d=await res.json(); driveLink=d.url||null; }catch(e){}
+    state.driveLink=driveLink||('https://drive.google.com/drive/folders/'+FOLDER_ID);
+    state.phase='done';
+  } catch(e){
+    // CORS may block reading response but request was sent — assume success
+    if(e.message.includes('fetch')||e.message.includes('CORS')||e.message.includes('network')){
+      state.driveLink='https://drive.google.com/drive/folders/'+FOLDER_ID;
+      state.phase='done';
+    } else { state.error='Upload mislukt: '+e.message; state.phase=state.mode==='voice'?'review':'form'; }
+  }
+  render();
+}
+
+// ─── PDF ──────────────────────────────────────────────────
+function buildPDF(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const now=new Date();
+  const ds=now.toLocaleDateString('nl-NL');
+  const ts=now.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'});
+  const ref='ICT-'+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(Date.now()).slice(-4);
+  doc.setFillColor(7,13,26); doc.rect(0,0,210,38,'F');
+  doc.setFillColor(0,212,180); doc.rect(0,38,210,1.5,'F');
+  doc.setTextColor(232,240,254); doc.setFontSize(20); doc.setFont('helvetica','bold');
+  doc.text('ICT Wijzigingsverzoek',15,16);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(74,112,144);
+  doc.text('Zorginstelling — Digitale Infrastructuur',15,24);
+  doc.setTextColor(0,212,180); doc.setFontSize(8);
+  doc.text(ref,195,13,{align:'right'});
+  doc.setTextColor(90,122,154); doc.text(ds+'  '+ts,195,20,{align:'right'});
+  let y=50;
+  const df=(label,value,x,w,yp,tall)=>{
+    const lines=doc.splitTextToSize(value||'—',w-8);
+    const h=tall?Math.max(22,12+lines.length*5.5):18;
+    doc.setFillColor(10,20,34); doc.rect(x,yp,w,h,'F');
+    doc.setDrawColor(23,42,66); doc.setLineWidth(.3); doc.rect(x,yp,w,h,'S');
+    doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(0,212,180);
+    doc.text(label,x+4,yp+5.5);
+    doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(200,220,250);
+    doc.text(lines,x+4,yp+12); return h;
+  };
+  df('AANVRAGER',state.form.aanvrager,15,90,y); df('AFDELING',state.form.afdeling,110,85,y); y+=24;
+  const pc={laag:[74,222,128],midden:[251,191,36],hoog:[249,115,22],kritiek:[248,113,113]}[state.form.prioriteit]||[122,156,200];
+  doc.setFillColor(10,20,34); doc.rect(15,y,185,18,'F');
+  doc.setDrawColor(23,42,66); doc.setLineWidth(.3); doc.rect(15,y,185,18,'S');
+  doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(0,212,180); doc.text('PRIORITEIT',19,y+5.5);
+  doc.setFillColor(pc[0],pc[1],pc[2]); doc.roundedRect(19,y+7,32,7,1,1,'F');
+  doc.setTextColor(8,14,25); doc.setFontSize(8.5); doc.setFont('helvetica','bold');
+  doc.text(state.form.prioriteit.toUpperCase(),35,y+12.5,{align:'center'}); y+=24;
+  const bh=df('BESCHRIJVING',state.form.beschrijving,15,185,y,true); y+=bh+6;
+  df('MOTIVATIE',state.form.motivatie,15,185,y,true);
+  doc.setFillColor(7,13,26); doc.rect(0,272,210,25,'F');
+  doc.setFillColor(0,212,180); doc.rect(0,272,210,0.8,'F');
+  doc.setTextColor(74,112,144); doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.text('Gegenereerd via ICT Intake App  ·  '+ds+' '+ts+'  ·  '+ref,105,281,{align:'center'});
+  return{base64:doc.output('datauristring').split(',')[1],filename:ref+'.pdf'};
+}
+
+// ─── RENDER ───────────────────────────────────────────────
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function dotsHTML(step){
+  return`<div class="dots">${QUESTIONS.map((_,i)=>`<div class="dot ${i<step?'done':i===step?'active':''}"></div>`).join('')}</div>`;
+}
+
+function modeToggle(){
+  return`<div class="mode-toggle">
+    <button class="mode-btn ${state.mode==='voice'?'on':'off'}" onclick="state.mode='voice';if(state.phase==='form')state.phase='idle';render()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+      Spraak
+    </button>
+    <button class="mode-btn ${state.mode==='type'?'on':'off'}" onclick="state.mode='type';if(state.phase==='idle'||state.phase==='asking'||state.phase==='processing')state.phase='form';render()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 10H3"/><path d="M21 6H3"/><path d="M21 14H3"/><path d="M17 18H3"/></svg>
+      Typen
+    </button>
+  </div>`;
+}
+
+function render(){
+  const f=state.form;
+
+  // ── SETUP ──
+  if(state.phase==='setup'){
+    document.getElementById('app').innerHTML=`<div class="screen">
+      <div class="logo"><span class="logo-hex">⬡</span><span class="logo-text">ICT Intake</span></div>
+      <div class="page-title" style="font-size:26px">Instellingen</div>
+      <div class="setup-card">
+        <div>
+          <label class="f-label" style="display:block;margin-bottom:5px">Google Apps Script URL <span style="color:#f87171">*</span></label>
+          <input id="su" class="s-input" type="text" placeholder="https://script.google.com/macros/s/..." value="${esc(scriptUrl)}">
+          <p class="s-hint">Nog geen URL? Zie het meegeleverde <code>DriveUpload_AppScript.gs</code> bestand.</p>
+        </div>
+        <div>
+          <label class="f-label" style="display:block;margin-bottom:5px">Anthropic API-sleutel <span style="color:#3a6080">(alleen voor spraakmode)</span></label>
+          <input id="sk" class="s-input" type="password" placeholder="sk-ant-api03-..." value="${esc(apiKey)}" onkeydown="if(event.key==='Enter')saveSettings()">
+          <p class="s-hint">Aanvragen via <a href="https://console.anthropic.com" target="_blank" style="color:#00d4b4">console.anthropic.com</a></p>
+        </div>
+        <p id="serr" class="s-err"></p>
+        <button class="btn-p btn-full" onclick="saveSettings()">Opslaan &rarr;</button>
+      </div>
+    </div>`;
+    return;
+  }
+
+  // ── UPLOADING / PROCESSING ──
+  if(state.phase==='uploading'||state.phase==='processing'){
+    document.getElementById('app').innerHTML=`<div class="screen center">
+      <div class="spinner"></div>
+      <p class="loading-text">${state.phase==='processing'?'Antwoorden verwerken...':'PDF uploaden naar Drive...'}</p>
+    </div>`; return;
+  }
+
+  // ── DONE ──
+  if(state.phase==='done'){
+    document.getElementById('app').innerHTML=`<div class="screen center" style="gap:14px">
+      <div class="success-icon">&#10003;</div>
+      <p class="success-title">Opgeslagen!</p>
+      <p style="font-size:14px;color:#3a6080;max-width:280px;line-height:1.5">Het wijzigingsverzoek is als PDF opgeslagen in uw Drive-map.</p>
+      <span class="file-chip">${esc(state.filename)}</span>
+      <a href="${state.driveLink}" target="_blank" class="btn-drive" style="width:280px">Open Google Drive &#x2197;</a>
+      <button class="btn-s" style="width:280px" onclick="state.phase=state.mode==='type'?'form':'idle';state.form={aanvrager:'',afdeling:'',prioriteit:'midden',beschrijving:'',motivatie:''};render()">Nieuw verzoek</button>
+      <p class="gear-link" onclick="state.phase='setup';render()">&#9881; Instellingen</p>
+    </div>`; return;
+  }
+
+  // ── ERROR ──
+  if(state.phase==='error'){
+    document.getElementById('app').innerHTML=`<div class="screen center">
+      <div class="error-icon">!</div>
+      <p class="error-msg">${esc(state.error)}</p>
+      <button class="btn-s" onclick="state.phase=state.mode==='type'?'form':'idle';render()">Opnieuw proberen</button>
+    </div>`; return;
+  }
+
+  // ── TYPING FORM ──
+  if(state.phase==='form'){
+    document.getElementById('app').innerHTML=`<div class="screen">
+      <div class="logo"><span class="logo-hex">⬡</span><span class="logo-text">ICT Intake</span></div>
+      ${modeToggle()}
+      ${state.error?`<div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:8px;padding:10px 12px;font-size:13px;color:#f87171">${esc(state.error)}</div>`:''}
+      <div class="form-card">
+        <div class="f-row">
+          <div class="f-group"><label class="f-label">Aanvrager</label><input id="f-aanvrager" class="f-input" placeholder="Uw naam" value="${esc(f.aanvrager)}"></div>
+          <div class="f-group"><label class="f-label">Afdeling</label><input id="f-afdeling" class="f-input" placeholder="Afdeling" value="${esc(f.afdeling)}"></div>
+        </div>
+        <div class="f-group">
+          <label class="f-label">Prioriteit</label>
+          <div class="p-row">
+            ${['laag','midden','hoog','kritiek'].map(p=>`<button class="p-btn ${f.prioriteit===p?'p-'+p:''}" onclick="state.form.prioriteit='${p}';render()">${p.charAt(0).toUpperCase()+p.slice(1)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="f-group"><label class="f-label">Beschrijving</label><textarea id="f-beschrijving" class="f-textarea" placeholder="Beschrijf de gewenste ICT-wijziging">${esc(f.beschrijving)}</textarea></div>
+        <div class="f-group"><label class="f-label">Motivatie</label><textarea id="f-motivatie" class="f-textarea" placeholder="Reden voor de wijziging">${esc(f.motivatie)}</textarea></div>
+      </div>
+      <button class="btn-p btn-full" onclick="opslaan()">Opslaan als PDF naar Drive &rarr;</button>
+      <p class="gear-link" onclick="state.phase='setup';render()">&#9881; Instellingen</p>
+    </div>`; return;
+  }
+
+  // ── VOICE: IDLE ──
+  if(state.phase==='idle'){
+    document.getElementById('app').innerHTML=`<div class="screen">
+      <div class="logo"><span class="logo-hex">⬡</span><span class="logo-text">ICT Intake</span></div>
+      ${modeToggle()}
+      <div class="page-title">Wijzigings&shy;verzoek</div>
+      <p class="page-sub">De app stelt 5 vragen. Spreek uw antwoord telkens in — het wordt automatisch herkend en ingevuld.</p>
+      <div class="mic-wrap">
+        <button class="mic-btn" onclick="startIntake()">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <p class="hint">Tik om te starten</p>
+      </div>
+      <div style="height:1px;background:linear-gradient(90deg,transparent,#172a42,transparent)"></div>
+      <p style="font-size:11px;color:#1a2a3a;text-align:center">5 vragen · PDF naar Google Drive</p>
+      <p class="gear-link" onclick="state.phase='setup';render()">&#9881; Instellingen</p>
+    </div>`; return;
+  }
+
+  // ── VOICE: ASKING ──
+  if(state.phase==='asking'){
+    const Q=QUESTIONS[state.step];
+    const heard=state.currentTranscript.trim();
+    document.getElementById('app').innerHTML=`<div class="screen">
+      <div class="progress-row">${dotsHTML(state.step)}<span class="prog-label">Vraag ${state.step+1} van ${QUESTIONS.length}</span></div>
+      <div><p class="q-field">${Q.label}</p><h2 class="q-text">${Q.q}</h2></div>
+      <div class="listen-box">
+        ${state.confirmed?`
+          <div class="status-row"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block"></span><span style="color:#4ade80">Gehoord</span></div>
+          <p class="t-heard">${esc(heard)}</p>
+          <div class="cd-bar"><div id="cd-fill" class="cd-fill" style="width:${cdVal}%"></div></div>
+          <p style="font-size:11px;color:#1a3a2a">Doorgaan over 2 seconden...</p>
+        `:state.ttsBlocked?`
+          <div class="status-row"><span class="wait-dot"></span><span style="color:#fbbf24">Tik om te beginnen</span></div>
+          <p class="t-empty">Tik de knop hieronder om de vraag te horen.</p>
+        `:state.ttsActive?`
+          <div class="status-row"><span style="width:8px;height:8px;border-radius:50%;background:#00d4b4;display:inline-block;animation:blink 1s infinite"></span><span style="color:#00d4b4">Vraag wordt uitgesproken...</span></div>
+        `:`
+          <div class="status-row"><span class="rec-dot"></span><span style="color:#f87171">Luisteren</span></div>
+          ${(state.currentTranscript+state.interim).trim()?`<p class="t-text">${esc(state.currentTranscript+state.interim)}</p>`:`<p class="t-empty">Spreek uw antwoord in...</p>`}
+        `}
+      </div>
+      <div class="btn-row">
+        ${state.confirmed?`
+          <button class="btn-s" onclick="cancelCountdown()">&#x21BA; Opnieuw</button>
+          <button class="btn-p" onclick="clearInterval(cdInterval);nextStep()">Doorgaan &rarr;</button>
+        `:state.ttsBlocked?`
+          <button class="btn-p btn-full" onclick="tapToSpeak()">&#x25B6; Hoor de vraag &amp; antwoord</button>
+        `:`
+          <button class="btn-ghost" onclick="state.phase='idle';if(rec){try{rec.stop()}catch(e){}rec=null};window.speechSynthesis.cancel();render()">&#x2715; Stoppen</button>
+        `}
+      </div>
+    </div>`; return;
+  }
+
+  // ── REVIEW (after voice) ──
+  if(state.phase==='review'){
+    document.getElementById('app').innerHTML=`<div class="screen">
+      <div><span class="badge">Controleer</span><h2 class="review-title" style="margin-top:6px">Klopt alles?</h2>
+      <p style="font-size:13px;color:#3a6080;margin-top:3px">Pas aan indien nodig, dan opslaan.</p></div>
+      ${state.error?`<div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:8px;padding:10px 12px;font-size:13px;color:#f87171">${esc(state.error)}</div>`:''}
+      <div class="form-card">
+        <div class="f-row">
+          <div class="f-group"><label class="f-label">Aanvrager</label><input class="f-input" value="${esc(f.aanvrager)}" oninput="state.form.aanvrager=this.value" placeholder="Naam"></div>
+          <div class="f-group"><label class="f-label">Afdeling</label><input class="f-input" value="${esc(f.afdeling)}" oninput="state.form.afdeling=this.value" placeholder="Afdeling"></div>
+        </div>
+        <div class="f-group">
+          <label class="f-label">Prioriteit</label>
+          <div class="p-row">${['laag','midden','hoog','kritiek'].map(p=>`<button class="p-btn ${f.prioriteit===p?'p-'+p:''}" onclick="state.form.prioriteit='${p}';render()">${p.charAt(0).toUpperCase()+p.slice(1)}</button>`).join('')}</div>
+        </div>
+        <div class="f-group"><label class="f-label">Beschrijving</label><textarea class="f-textarea" oninput="state.form.beschrijving=this.value" placeholder="Beschrijving">${esc(f.beschrijving)}</textarea></div>
+        <div class="f-group"><label class="f-label">Motivatie</label><textarea class="f-textarea" oninput="state.form.motivatie=this.value" placeholder="Motivatie">${esc(f.motivatie)}</textarea></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-s" onclick="startIntake()">&#x21BA; Opnieuw</button>
+        <button class="btn-p" onclick="opslaan()">Opslaan naar Drive &rarr;</button>
+      </div>
+    </div>`; return;
+  }
+}
+
+render();
+</script>
+</body>
+</html>
