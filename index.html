@@ -166,6 +166,36 @@ function saveSettings() {
   state.phase = 'idle'; render();
 }
 
+// ─── STEM TEST ────────────────────────────────────────────
+async function testStem() {
+  const key   = document.getElementById('sok')?.value?.trim() || openaiKey;
+  const voice = document.getElementById('sv')?.value || ttsVoice;
+  const status = document.getElementById('stem-status');
+  if (!key) { if(status) status.textContent = '⚠ Vul eerst een OpenAI-sleutel in'; return; }
+  if(status) status.textContent = '⏳ Verbinden met OpenAI...';
+  try {
+    const res = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'tts-1', input: 'Hallo, dit is een test van de ' + voice + ' stem.', voice: voice })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      if(status) status.textContent = '✗ Fout: ' + (err.error?.message || res.status);
+      return;
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.onended = () => { URL.revokeObjectURL(url); if(status) status.textContent = '✓ Stem werkt!'; };
+    audio.onerror = () => { if(status) status.textContent = '✗ Audio afspelen mislukt'; };
+    await audio.play();
+    if(status) status.textContent = '🔊 Speelt af...';
+  } catch(e) {
+    if(status) status.textContent = '✗ ' + e.message;
+  }
+}
+
 // ─── TTS (OpenAI of browser-fallback) ────────────────────
 let currentAudio = null;
 
@@ -452,9 +482,13 @@ function render(){
         </div>
         <div>
           <label class="f-label" style="display:block;margin-bottom:5px">Stem</label>
-          <select id="sv" class="s-input">
-            ${['nova','shimmer','alloy','echo','fable','onyx'].map(v=>`<option value="${v}" ${ttsVoice===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}${v==='nova'?' (aanbevolen)':v==='shimmer'?' (zacht)':''}</option>`).join('')}
-          </select>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="sv" class="s-input" style="flex:1">
+              ${['nova','shimmer','alloy','echo','fable','onyx'].map(v=>`<option value="${v}" ${ttsVoice===v?'selected':''}>${v.charAt(0).toUpperCase()+v.slice(1)}${v==='nova'?' (aanbevolen)':v==='shimmer'?' (zacht)':''}</option>`).join('')}
+            </select>
+            <button onclick="testStem()" style="padding:10px 14px;background:#172a42;border:1.5px solid #00d4b4;border-radius:8px;color:#00d4b4;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:'IBM Plex Sans',sans-serif">&#x25B6; Test</button>
+          </div>
+          <p id="stem-status" class="s-hint" style="min-height:14px"></p>
         </div>
         <div>
           <label class="f-label" style="display:block;margin-bottom:5px">Anthropic API-sleutel <span style="color:#3a6080">(voor spraakverwerking)</span></label>
